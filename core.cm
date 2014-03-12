@@ -4,6 +4,7 @@ conj.fun
 core.sig
 core.fun
 comparison.sml
+list.sml
 maybe.sig
 maybe.fun
 monad.sml

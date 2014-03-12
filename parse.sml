@@ -5,7 +5,9 @@ signature Parse = sig
     include Monoid
     val invoke : 'a t -> string -> 'a Maybe.t
     val predicate : (char -> bool) -> char t
+    val not : (char -> bool) -> char t
     val character : char -> char t
+    val notCharacter : char -> char t
     val characterClass : string -> char t
     val literal : string -> char list t
     val literalWithSpace : string -> char list t
@@ -19,6 +21,8 @@ signature Parse = sig
     val separatedBy : 'a t -> 'b t -> 'a list t
     val whitespace : char t
     val whitespaces : char list t
+    val thenSpace : 'a t -> 'a t 
+    val ignoreSpace : 'a t -> 'a t
     val lower : char t
     val upper : char t
     val alpha : char t
@@ -50,7 +54,10 @@ fun invoke p xs = case (p o String.explode) xs of
 		    | Success _ => Maybe.None
 fun predicate p [] = Failure
   | predicate p (x::xs) = if p x then return x xs else Failure
+fun not p [] = Failure
+  | not p (x::xs) = if p x then Failure else return x xs
 fun character c = predicate (fn x => x = c)
+fun notCharacter c = not (fn x => x = c)
 val characterClass =
     let fun characterClass' [] = zero
 	  | characterClass' (c::cs) = plus (character c) (characterClass' cs)
@@ -69,12 +76,14 @@ fun andp f g xs = case g xs of
 		      Failure => Failure
 		    | Success _ => f xs
 fun f <&&> g = andp f g
-fun some f x = (plus (cons f (some f)) (fmap List.return f)) x
+fun some f x = (plus (cons f (some f)) (fmap ListM.return f)) x
 fun many f = plus (some f) (return [])
 fun surround f g h = right g (left f h)
 fun separatedBy f g = cons f (many (right g f))
 val whitespace = characterClass " \t\n\r"
 val whitespaces = many whitespace
+fun thenSpace p = left p whitespaces
+fun ignoreSpace p = surround p whitespaces whitespaces
 fun literalWithSpace l = left (literal l) whitespaces
 val lower = characterClass "abcdefghijklmnopqrstuvwxyz"
 val upper = characterClass "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -83,46 +92,15 @@ val digit = characterClass "0123456789"
 val operator = characterClass "-+=<>*/%"
 end
 
-signature JSON = sig
-datatype t
-  = Number of real
-  | String of string
-  | Array of t list
-  | Object of (t * t) list
-val parse : t Parse.t
-structure Parser : sig
-	      val json : t Parse.t
-	      val number : t Parse.t
-	      val string : t Parse.t
-	      val array : t Parse.t
-	      val object : t Parse.t
-	  end
+signature REAL = sig
+    include REAL
+    val fromString_exc : string -> real
 end
 
-structure JSON : JSON = struct
-datatype t
-  = Number of real
-  | String of string
-  | Array of t list
-  | Object of (t * t) list
-structure Parser = struct
-open Core
-open Parse
-val quote = literalWithSpace "\""
-val lbrace = literalWithSpace "["
-val rbrace = literalWithSpace "]"
-val lbracket = literalWithSpace "{"
-val rbracket = literalWithSpace "}"
-val comma = literalWithSpace ","
-val colon = literalWithSpace ":"
-fun json x = sum [number, string, array, object] x
-and number x = fmap (fn cs => Number (case Real.fromString (String.implode cs) of
-					  NONE => 0.0
-					| SOME n => n))
-		    (some digit) x
-and string x = fmap (String o String.implode) (surround (many alpha) quote quote) x
-and array x = fmap Array (surround (separatedBy json comma) lbrace rbrace) x
-and object x = fmap Object (surround (separatedBy (both string (right colon json)) comma) lbracket rbracket) x
-end
-val parse = Parser.json
+structure Real : REAL = struct
+open Real
+exception Parse
+fun fromString_exc s = case Real.fromString s of
+			   NONE => raise Parse
+			 | SOME n => n
 end

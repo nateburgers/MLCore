@@ -67,7 +67,6 @@ functor Applicative ( A : Applicative' ) : Applicative = struct
 	open F
 	fun lift2 f a b = f <$> a <*> b
 	fun lift3 f a b c = f <$> a <*> b <*> c
-	(* fun left a b = (lift2 Core.left) a b *)
 	fun left a b = (lift2 const) a b
 	fun f <* g = left f g
 	fun right a b = (lift2 (const id)) a b
@@ -151,10 +150,10 @@ functor Monoid ( M : Monoid' ) : Monoid = struct
 	open M
 	open Core
 	structure M' = Monad (struct
-			      type 'a t = 'a t
-			      val return = return
-			      val bind = bind
-			      end)
+			       type 'a t = 'a t
+			       val return = return
+			       val bind = bind
+			       end)
 	open M'
 	fun x <|> y = plus x y
 	fun x <| y = x <* y <|> x
@@ -165,17 +164,4 @@ functor Monoid ( M : Monoid' ) : Monoid = struct
 					    true => return a
 					  | false => zero)
 	end
-
-structure List = struct
-open List
-open Core
-structure M = Monoid (struct
-		      type 'a t = 'a list
-		      fun return x = [x]
-		      fun bind x f = List.concat (map f x)
-		      val zero = []
-		      fun plus xs = curry op@ xs
-		    end)
-open M
-end
 
