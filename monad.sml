@@ -26,7 +26,7 @@ functor Functor ( F : Functor' ) : Functor = struct
 	fun x <$ y = fconst x y
 	end
 
-infix 4 <*> <* *>
+infix 4 <*> <* *> <::> <&>
 signature Applicative' = sig
     type 'a t
     val pure : 'a -> 'a t
@@ -40,6 +40,10 @@ signature Applicative'' = sig
     val <* : 'a t * 'b t -> 'a t
     val right : 'a t -> 'b t -> 'b t
     val *> : 'a t * 'b t -> 'b t
+    val cons : 'a t -> 'a list t -> 'a list t
+    val <::> : 'a t * 'a list t -> 'a list t
+    val both : 'a t -> 'b t -> ('a * 'b) t
+    val <&> : 'a t * 'b t -> ('a * 'b) t
     val lift : ('a -> 'b) -> 'a t -> 'b t
     val lift2 : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
     val lift3 : ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
@@ -63,10 +67,15 @@ functor Applicative ( A : Applicative' ) : Applicative = struct
 	open F
 	fun lift2 f a b = f <$> a <*> b
 	fun lift3 f a b c = f <$> a <*> b <*> c
-	fun left a b = (lift2 Core.left) a b
+	(* fun left a b = (lift2 Core.left) a b *)
+	fun left a b = (lift2 const) a b
 	fun f <* g = left f g
-	fun right a b = (lift2 Core.right) a b
+	fun right a b = (lift2 (const id)) a b
 	fun f *> g = right f g
+	fun cons x xs = lift2 (curry op::) x xs
+	fun x <::> xs = cons x xs
+	fun both a b = lift2 Conj.new a b
+	fun a <&> b = both a b
 	end
 
 infix 6 >>= >> >=>
@@ -85,6 +94,7 @@ signature Monad'' = sig
     val >>= : 'a t * ('a -> 'b t) -> 'b t
     val =<< : ('a -> 'b t) * 'a t -> 'b t
     val next : 'a t -> 'b t -> 'b t
+    (* TODO: remove << and >>, they are equivalent to <* and *> *)
     val >> : 'a t * 'b t -> 'b t
     val << : 'a t * 'b t -> 'a t
 end
@@ -169,27 +179,3 @@ structure M = Monoid (struct
 open M
 end
 
-structure Parse = struct
-open Core
-datatype 'a result
-  = Failure
-  | Success of 'a * char list
-type 'a t = char list -> 'a result
-fun bind f g = fn xs => case f xs of
-			    Failure => Failure
-			  | Success (result, remainder) => g result remainder
-fun unit x xs = Success (x, xs)
-fun zero _ = Failure
-fun plus f g = fn xs => case f xs of
-			    Failure => g xs
-			  | s as Success _ => s
-fun invoke p = p o String.explode
-structure M = Monoid (struct
-		       type 'a t = 'a t
-		       fun return x = unit x
-		       val bind = bind
-		       val zero = zero
-		       val plus = plus
-		     end)
-open M
-end

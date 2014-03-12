@@ -7,5 +7,6 @@ comparison.sml
 maybe.sig
 maybe.fun
 monad.sml
+parse.sml
 $/basis.cm
 $/smlnj-lib.cm
