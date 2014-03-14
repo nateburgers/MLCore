@@ -6,20 +6,6 @@ fun get [] x = Maybe.None
   | get ((k,v)::xs) x = if k = x then Maybe.Just v else get xs x
 fun set xs k v = (k,v)::xs
 
-(* GenType *)
-signature GenType = sig
-    type t
-    val unit : t
-    val new : t -> t
-end
-
-structure GenType = struct
-open Core
-type t = int
-val unit = 0
-val new = curry op+ 1
-end
-
 (* Lark *)
 structure Lark = struct
 open Core
@@ -57,14 +43,15 @@ fun typeEval (t as TypeVariable _) = t
 	  val b' = typeEval b
       in case a' of
 	     TypeAbstraction (x,y) => replace y x b'
-	   | t as _ => t
+	   | t => t
       end
 
 fun toString (TypeVariable v) = v
-  | toString (TypeAbstraction (x,y)) = "(" ^ toString x ^ " -> " ^ toString y ^ ")"
+  | toString (TypeAbstraction (x,y)) = "(" ^ toString x ^ " . " ^ toString y ^ ")"
   | toString (TypeApplication (x,y)) = toString x ^ " " ^ toString y
 
 structure TypeParser = struct
+open Core
 open Parse
 datatype Ast
   = Var of string
@@ -73,7 +60,8 @@ datatype Ast
 val dot = literal "."
 val lparen = literal "("
 val rparen = literal ")"
-fun typep x = sum [application, wrap, abstraction, variable] x
+fun program x = ignoreSpace typep x
+and typep x = sum [application, wrap, abstraction, variable] x
 and wrap x = surround typep (ignoreSpace lparen) (right whitespaces rparen) x
 and variable x = lift (Var o String.implode) (some alpha) x
 and abstraction x = lift Abs (both (separatedBy variable (some whitespace))
@@ -83,20 +71,48 @@ fun spaced xs = String.concat (ListM.intersperse xs " ")
 fun toString (Var x) = x
   | toString (Abs (xs, ys)) = "(" ^ spaced (map toString xs) ^ "." ^ spaced (map toString ys) ^ ")"
   | toString (App xs) = spaced (map toString xs)
+fun translate (Var x) = TypeVariable x
+  | translate (Abs (xs,ys)) =
+    let val xs' = map translate xs
+	val ys' = map translate ys
+    in ListM.foldr (curry TypeAbstraction) (ListM.concat (curry TypeApplication) ys') xs'
+    end
+  | translate (App xs) = ListM.concat (curry TypeApplication) (map translate xs)
 end
 
 exception Unparsable
-val parse = Parse.invoke TypeParser.typep
+val parse = Parse.invoke TypeParser.program
 fun parse_exc s = case parse s of
 		      Maybe.None => raise Unparsable
 		    | Maybe.Just t => t
-val rep = TypeParser.toString o parse_exc
+val rep = toString o typeEval o TypeParser.translate o parse_exc
 
-(* fun parse_exc s = case parse s of *)
-(* 		      Maybe.None => raise Unparsable *)
-(* 		    | Maybe.Just t => t *)
-(* val ep = toString o typeEval *)
-(* val rep = toString o typeEval o parse_exc *)
-
+exception Quitting
+fun repl ()
+    = let val _ = TextIO.print "> "
+	  val programText = TextIO.inputLine TextIO.stdIn
+	  val _ = if programText = (SOME "quit\n")
+		  then raise Quitting
+		  else ()
+	  val parsedText = case programText of
+			       NONE => Maybe.None
+			     | SOME s => parse s
+	  val result = let val errorText = case programText of
+					       NONE => "no input"
+					     | SOME s => s
+		       in case parsedText of
+			      Maybe.None => "error: Could not parse: " ^ errorText
+			    | Maybe.Just t => (toString o typeEval o TypeParser.translate) t
+		       end
+	  val _ = TextIO.print (result ^ "\n")
+      in repl ()
+      end handle Quitting => TextIO.print "Quitting.\n"
 end
 
+fun repl x =
+    let val _ = TextIO.print (
+		"== Lark Language (Alpha) Type System Interpreter ==\n" ^
+		"== Nathan Burgers 2014.                          ==\n"
+	    )
+    in Lark.repl x
+    end
