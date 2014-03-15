@@ -34,7 +34,6 @@ signature Applicative' = sig
 end
 
 signature Applicative'' = sig
-    type 'a t
     val <*> : ('a -> 'b) t * 'a t -> 'b t
     val left : 'a t -> 'b t -> 'a t
     val <* : 'a t * 'b t -> 'a t

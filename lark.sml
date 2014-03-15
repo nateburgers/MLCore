@@ -36,15 +36,16 @@ fun replace (v as TypeVariable _) a b = if v = a then b else a
 
 fun specialise (TypeAbstraction (x,y)) v = replace y x v
 
-fun typeEval (t as TypeVariable _) = t
-  | typeEval (t as TypeAbstraction _) = t
-  | typeEval (TypeApplication (a,b))
-    = let val a' = typeEval a
-	  val b' = typeEval b
-      in case a' of
-	     TypeAbstraction (x,y) => replace y x b'
-	   | t => t
-      end
+fun typeEval (TypeApplication (TypeAbstraction (x, e0), e1))
+    = typeEval (replace e0 x e1)
+  | typeEval x = x
+(* | typeEval (TypeApplication (a,b)) *)
+  (*   = let val a' = typeEval a *)
+  (* 	  val b' = typeEval b *)
+  (*     in case a' of *)
+  (* 	     TypeAbstraction (x,y) => replace y x b' *)
+  (* 	   | _ => TypeApplication (a,b) *)
+  (*     end *)
 
 fun toString (TypeVariable v) = v
   | toString (TypeAbstraction (x,y)) = "(" ^ toString x ^ " . " ^ toString y ^ ")"
@@ -107,12 +108,14 @@ fun repl ()
 	  val _ = TextIO.print (result ^ "\n")
       in repl ()
       end handle Quitting => TextIO.print "Quitting.\n"
+
+fun main ()
+    = let val _ = TextIO.print (
+		  "== Lark Language (Alpha) Type System Interpreter ==\n" ^
+		  "== Nathan Burgers 2014.                          ==\n"
+	      )
+      in repl ()
+      end
 end
 
-fun repl x =
-    let val _ = TextIO.print (
-		"== Lark Language (Alpha) Type System Interpreter ==\n" ^
-		"== Nathan Burgers 2014.                          ==\n"
-	    )
-    in Lark.repl x
-    end
+val _ = Lark.main ()
