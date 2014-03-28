@@ -42,6 +42,7 @@ signature Applicative = sig
     val <::> : 'a t * 'a list t -> 'a list t
     val both : 'a t -> 'b t -> ('a * 'b) t
     val <&> : 'a t * 'b t -> ('a * 'b) t
+    val append : 'a list t -> 'a list t -> 'a list t
 end
 
 functor Applicative ( A : sig
@@ -67,6 +68,7 @@ functor Applicative ( A : sig
 	fun x <::> xs = cons x xs
 	fun both a b = map2 Tuple.new a b
 	fun a <&> b = both a b
+	fun append xs ys = map2 (curry op@) xs ys
 	end
 
 infix 4 >>= >=>

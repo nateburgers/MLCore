@@ -1,5 +1,6 @@
 (* Nathan Burgers 2014 *)
 
+
 infix 4 <$> <$
 signature Functor' = sig
     type 'a t
@@ -34,6 +35,7 @@ signature Applicative' = sig
 end
 
 signature Applicative'' = sig
+    type 'a t
     val <*> : ('a -> 'b) t * 'a t -> 'b t
     val left : 'a t -> 'b t -> 'a t
     val <* : 'a t * 'b t -> 'a t
@@ -72,7 +74,7 @@ functor Applicative ( A : Applicative' ) : Applicative = struct
 	fun f *> g = right f g
 	fun cons x xs = lift2 (curry op::) x xs
 	fun x <::> xs = cons x xs
-	fun both a b = lift2 Conj.new a b
+	fun both a b = lift2 Tuple.new a b
 	fun a <&> b = both a b
 	end
 

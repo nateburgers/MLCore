@@ -1,7 +1,7 @@
 (* Nathan Burgers 2014 *)
 
 signature ListM = sig
-    include Monoid
+    include MonadPlus
     val intersperse : 'a t -> 'a -> 'a t
     val fold : ('a -> 'b -> 'a) -> 'a -> 'b list -> 'a
     val foldr : ('a -> 'b -> 'b) -> 'b -> 'a list -> 'b
@@ -10,13 +10,13 @@ end
 
 structure ListM : ListM = struct
 open Core
-structure M = Monoid (struct
-		      type 'a t = 'a list
-		      fun return x = [x]
-		      fun bind x f = List.concat (map f x)
-		      val zero = []
-		      fun plus xs = curry op@ xs
-		    end)
+structure M = MonadPlus (struct
+			  type 'a t = 'a list
+			  fun pure x = [x]
+			  fun bind x f = List.concat (map f x)
+			  val zero = []
+			  fun plus xs = curry op@ xs
+			  end)
 open M
 exception Empty
 fun intersperse [] _ = []
