@@ -3,13 +3,13 @@ A set of Core libraries for practical Standard ML programming
 
 MLCore contains
 - Functors to create Applicative, Monad, and Monoid structures
-- A parser generator
+- Monadic Parser Combinators
+- JSON parser / emitter
 
 ##Roadmap
-- JSON parser
-- HTTP parser
 - Continuations
 - Coroutines
+- HTTP parser
 - Asynchronous Web Server
 - Redis integration
 - SQL integration
